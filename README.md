@@ -26,7 +26,7 @@ Este repositório contém o programa de criptografia baseado no algoritmo de RSA
 
 1. Clone o repositório usando o git.
    ```
-   git clone https://github.com/erasmo-junior-dev/Projeto-Criptografia-RSA-Matematica-Discreta.git
+   git clone https://github.com/erasmossj/Projeto-Criptografia-RSA-Matematica-Discreta.git
    ```
 2. Navegue até a pasta do projeto.
    ```
