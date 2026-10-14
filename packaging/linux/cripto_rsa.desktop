@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Criptografia RSA
+Comment=Gera chaves e criptografa mensagens com o algoritmo RSA
+Exec=cripto_rsa
+Icon=cripto_rsa
+Categories=Education;Utility;
+Terminal=false

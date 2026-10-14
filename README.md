@@ -10,17 +10,18 @@ Programa de criptografia baseado no algoritmo RSA, desenvolvido pelos autores pa
 
 ## Download
 
-Para usar o programa no Windows não é preciso compilar nada:
+Não é preciso compilar nada. Baixe o pacote do seu sistema na [última release](https://github.com/erasmossj/Projeto-Criptografia-RSA-Matematica-Discreta/releases/latest):
 
-1. Baixe o pacote **[cripto_rsa-windows-x64.zip](https://github.com/erasmossj/Projeto-Criptografia-RSA-Matematica-Discreta/releases/download/v.1.0.2/cripto_rsa-windows-x64.zip)** (release [v.1.0.2](https://github.com/erasmossj/Projeto-Criptografia-RSA-Matematica-Discreta/releases/tag/v.1.0.2)).
-2. Extraia o zip. Todos os arquivos precisam ficar juntos na pasta `cripto_rsa`.
-3. Execute `cripto_rsa.exe`.
+- **Windows (64 bits):** [cripto_rsa-windows-x64.zip](https://github.com/erasmossj/Projeto-Criptografia-RSA-Matematica-Discreta/releases/latest/download/cripto_rsa-windows-x64.zip). Extraia o zip (todos os arquivos precisam ficar juntos na pasta `cripto_rsa`) e execute `cripto_rsa.exe`.
+- **Linux (64 bits):** [cripto_rsa-linux-x86_64.AppImage](https://github.com/erasmossj/Projeto-Criptografia-RSA-Matematica-Discreta/releases/latest/download/cripto_rsa-linux-x86_64.AppImage). Dê permissão de execução (`chmod +x cripto_rsa-linux-x86_64.AppImage`) e execute. Funciona em distros com glibc 2.35 ou mais nova (Ubuntu 22.04+, Debian 12+, Fedora 36+).
+
+Os pacotes são gerados pelo GitHub Actions (`.github/workflows/release.yml`) a cada tag `v*`, a partir do código desta versão.
 
 Os arquivos `chaves.txt`, `mensagem_criptografada.txt` e `mensagem_descriptografada.txt` são gravados na pasta em que o programa foi aberto.
 
 Em caso de dúvidas, você pode seguir este manual de instruções: [Manual de Instruções](https://docs.google.com/document/d/1v1mLUwItjrb9E2OQbRLOgDU-GP0jsxHTi8m_-9Un1uA/)
 
-> O código-fonte não guarda mais executáveis nem DLLs: o pacote do Windows fica na página de releases.
+> O código-fonte não guarda executáveis nem DLLs: os pacotes ficam na página de releases. A versão antiga (v.1.0.2) continua disponível na [release dela](https://github.com/erasmossj/Projeto-Criptografia-RSA-Matematica-Discreta/releases/tag/v.1.0.2).
 
 ## Arquitetura
 

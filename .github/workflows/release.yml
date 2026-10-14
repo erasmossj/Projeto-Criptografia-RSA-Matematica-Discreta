@@ -1,0 +1,181 @@
+# Pacotes prontos para usar: zip para Windows (exe + DLLs) e AppImage para Linux.
+# Em pull request, só monta e testa os pacotes; numa tag v*, também publica a release.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+    paths:
+      - '.github/workflows/release.yml'
+      - 'packaging/**'
+      - 'CMakeLists.txt'
+      - 'src/**'
+      - 'include/**'
+      - 'assets/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Pacote Windows (zip)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: zip
+          pacboy: >-
+            gcc:p
+            cmake:p
+            ninja:p
+            qt6-base:p
+            qt6-tools:p
+            gmp:p
+      - name: Compilar
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DRSA_TESTES=OFF
+          cmake --build build
+      - name: Empacotar (windeployqt + DLLs do MSYS2)
+        run: |
+          set -euo pipefail
+          PKG=dist/cripto_rsa
+          mkdir -p "$PKG"
+          cp build/cripto_rsa.exe LICENSE "$PKG/"
+          WDQ=$(command -v windeployqt6 || command -v windeployqt-qt6 || command -v windeployqt || ls /ucrt64/share/qt6/bin/windeployqt*.exe | head -1)
+          echo "windeployqt: $WDQ"
+          "$WDQ" --release --no-translations --no-system-d3d-compiler --no-opengl-sw "$PKG/cripto_rsa.exe"
+          # O windeployqt não copia as dependências do MSYS2 (runtime do GCC, GMP, ICU, zstd...):
+          # o ldd resolve o que falta, até não sobrar nenhuma DLL de fora do pacote.
+          while :; do
+            novas=$(find "$PKG" -name '*.exe' -o -name '*.dll' | xargs ldd 2>/dev/null \
+              | awk '$3 ~ /^\/ucrt64\// {print $3}' | sort -u \
+              | while read -r dll; do [ -e "$PKG/$(basename "$dll")" ] || echo "$dll"; done)
+            [ -z "$novas" ] && break
+            echo "$novas"
+            cp $novas "$PKG/"
+          done
+          (cd dist && zip -qr ../cripto_rsa-windows-x64.zip cripto_rsa)
+          ls -la cripto_rsa-windows-x64.zip
+      - name: Teste de fumaça (abre sem o MSYS2 no PATH)
+        shell: pwsh
+        run: |
+          Expand-Archive cripto_rsa-windows-x64.zip -DestinationPath smoke
+          # Sem as DLLs do MSYS2 no PATH: o app só abre se o pacote estiver completo.
+          $env:PATH = "C:\Windows\System32;C:\Windows"
+          # DLL faltando vira erro de saída, e não uma janela de diálogo que trava o teste.
+          Add-Type -Namespace Win32 -Name Erro -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetErrorMode(uint modo);'
+          [void][Win32.Erro]::SetErrorMode(0x0003)
+          $app = Start-Process smoke\cripto_rsa\cripto_rsa.exe -WorkingDirectory smoke\cripto_rsa -PassThru
+          Start-Sleep -Seconds 8
+          try {
+            Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+            $tela = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $tela.Width, $tela.Height
+            [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($tela.Location, [System.Drawing.Point]::Empty, $tela.Size)
+            $bmp.Save("$PWD\tela-windows.png")
+          } catch { Write-Warning "Sem captura de tela: $_" }
+          if ($app.HasExited) { throw "O app fechou sozinho (código $($app.ExitCode))." }
+          Stop-Process -Id $app.Id
+          Write-Host "OK: o app abriu e continuou rodando."
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pacote-windows
+          path: cripto_rsa-windows-x64.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: tela-windows
+          path: tela-windows.png
+          if-no-files-found: ignore
+
+  linux:
+    name: Pacote Linux (AppImage)
+    # Ubuntu 22.04: o AppImage roda em distros com glibc 2.35 ou mais nova.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Instalar Qt 6, GMP e ferramentas
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake qt6-base-dev qmake6 qt6-qpa-plugins \
+            libgl-dev libgmp-dev libfuse2 xvfb imagemagick
+      - name: Compilar
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DRSA_TESTES=OFF
+          cmake --build build --parallel
+      - name: Empacotar (linuxdeploy + plugin Qt)
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: |
+          set -euo pipefail
+          mkdir -p ferramentas
+          base=https://github.com/linuxdeploy
+          wget -q -P ferramentas "$base/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
+          wget -q -P ferramentas "$base/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage"
+          chmod +x ferramentas/*.AppImage
+          export QMAKE=$(command -v qmake6)
+          ferramentas/linuxdeploy-x86_64.AppImage --appdir AppDir \
+            --executable build/cripto_rsa \
+            --desktop-file packaging/linux/cripto_rsa.desktop \
+            --icon-file packaging/linux/cripto_rsa.png \
+            --plugin qt --output appimage
+          mv Criptografia_RSA*.AppImage cripto_rsa-linux-x86_64.AppImage
+          # As bibliotecas do Qt precisam vir de dentro do pacote, não do sistema.
+          if ldd AppDir/usr/bin/cripto_rsa | grep -i 'libQt6' | grep -v AppDir; then
+            echo "::error::Qt resolvido fora do AppImage"; exit 1
+          fi
+          ls -la cripto_rsa-linux-x86_64.AppImage
+      - name: Teste de fumaça (abre numa tela virtual)
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: |
+          xvfb-run -a -s '-screen 0 1280x800x24' bash -c '
+            ./cripto_rsa-linux-x86_64.AppImage & app=$!
+            sleep 8
+            import -window root tela-linux.png || true
+            if ! kill -0 "$app"; then wait "$app"; echo "::error::O app fechou sozinho (código $?)"; exit 1; fi
+            kill "$app"
+            echo "OK: o app abriu e continuou rodando."'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pacote-linux
+          path: cripto_rsa-linux-x86_64.AppImage
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: tela-linux
+          path: tela-linux.png
+          if-no-files-found: ignore
+
+  publicar:
+    name: Publicar release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: pacote-*
+          merge-multiple: true
+          path: pacotes
+      - name: Criar a release com os pacotes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la pacotes
+          gh release create "$GITHUB_REF_NAME" pacotes/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Criptografia RSA $GITHUB_REF_NAME" \
+            --generate-notes
