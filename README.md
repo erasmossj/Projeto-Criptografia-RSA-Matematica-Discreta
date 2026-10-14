@@ -66,9 +66,12 @@ O núcleo não mostra mensagens, não abre janelas e não grava arquivos. Por is
 ├── assets/
 │   ├── cripto_rsa.ico
 │   └── recursos.qrc          ícone embutido no executável
+├── packaging/linux/          .desktop e ícone do AppImage
 ├── Makefile                  núcleo + testes
 ├── CMakeLists.txt            núcleo + testes + interface Qt
-└── .github/workflows/ci.yml
+└── .github/workflows/
+    ├── ci.yml                testes e build a cada push/PR
+    └── release.yml           pacotes Windows e Linux a cada tag v*
 ```
 
 > **Sobre a tela:** os arquivos `mainwindow.h` e `mainwindow.ui` da versão original nunca foram versionados. Eles foram recriados a partir do `mainwindow.cpp`, com os mesmos widgets, nomes e comportamento. O visual pode ser diferente do executável v1.0.2.
