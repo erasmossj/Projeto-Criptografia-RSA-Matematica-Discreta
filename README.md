@@ -3,38 +3,106 @@
 </p>
 
 <h1 align = "center">
-<b>Projeto de Criptografia RSA</b>
+<b>Criptografia RSA</b>
 </h1>
 
-Este repositório contém o programa de criptografia baseado no algoritmo de RSA desenvolvido pelos autores para a disciplina de matemática discreta, ministrada pelo professor Bruno Pimentel no Instituto de Computação da UFAL (IC/UFAL).
+Programa de criptografia baseado no algoritmo RSA, desenvolvido pelos autores para a disciplina de Matemática Discreta, ministrada pelo professor Bruno Pimentel no Instituto de Computação da UFAL (IC/UFAL). Ele gera as chaves a partir de dois primos P e Q e criptografa/descriptografa mensagens de texto.
 
-## Instruções de Uso
-### Baixando o arquivo .zip direto do GitHub
-1. Na barra do lado direito navegue até ```releases``` e selecione a mais recente ```latest```.
-2. Desça a página e clique em ```Source code (zip)```.
-3. Após o download, extraia todos os arquivos em uma mesma pasta.
-4. Execute o arquivo executável ```cripto_rsa.exe```.
+## Download
 
-**ou**
+Para usar o programa no Windows não é preciso compilar nada:
 
-1. Clique em ```code``` no canto superior.
-  - Em seguida clique em ```download ZIP```.
-2. Após o download, extraia todos os arquivos em uma mesma pasta.
-3. Execute o arquivo executável ```cripto_rsa.exe```.
+1. Baixe o pacote **[cripto_rsa-windows-x64.zip](https://github.com/erasmossj/Projeto-Criptografia-RSA-Matematica-Discreta/releases/download/v.1.0.2/cripto_rsa-windows-x64.zip)** (release [v.1.0.2](https://github.com/erasmossj/Projeto-Criptografia-RSA-Matematica-Discreta/releases/tag/v.1.0.2)).
+2. Extraia o zip. Todos os arquivos precisam ficar juntos na pasta `cripto_rsa`.
+3. Execute `cripto_rsa.exe`.
 
-### Clonando o repositório
-
-1. Clone o repositório usando o git.
-   ```
-   git clone https://github.com/erasmossj/Projeto-Criptografia-RSA-Matematica-Discreta.git
-   ```
-2. Navegue até a pasta do projeto.
-   ```
-   cd caminho/da/pasta
-   ```
-3. Execute o arquivo executável ```cripto_rsa.exe```.
+Os arquivos `chaves.txt`, `mensagem_criptografada.txt` e `mensagem_descriptografada.txt` são gravados na pasta em que o programa foi aberto.
 
 Em caso de dúvidas, você pode seguir este manual de instruções: [Manual de Instruções](https://docs.google.com/document/d/1v1mLUwItjrb9E2OQbRLOgDU-GP0jsxHTi8m_-9Un1uA/)
+
+> O código-fonte não guarda mais executáveis nem DLLs: o pacote do Windows fica na página de releases.
+
+## Arquitetura
+
+O projeto é dividido em duas camadas, e a dependência vai num sentido só: a interface conhece o núcleo, o núcleo não conhece a interface.
+
+```
+┌──────────────────────────────────────────────┐
+│ Interface — C++ / Qt 6 Widgets  (src/gui)    │
+│  MainWindow: lê os campos, chama o núcleo e  │
+│  mostra o resultado ou o erro                │
+│  arquivos: grava chaves.txt e mensagens .txt │
+└──────────────────────┬───────────────────────┘
+                       │ include/rsa.h  (API em C, extern "C")
+┌──────────────────────▼───────────────────────┐
+│ Núcleo — C / GMP  (src/core)                 │
+│  rsa.c: gerar/validar chaves, cifrar,        │
+│         decifrar; erros como rsa_status      │
+│  aritmetica.c: primo, MDC, inverso modular,  │
+│                exponenciação modular         │
+└──────────────────────────────────────────────┘
+```
+
+O núcleo não mostra mensagens, não abre janelas e não grava arquivos. Por isso ele é testado em C puro, sem Qt.
+
+```
+.
+├── include/
+│   └── rsa.h                 API pública do núcleo
+├── src/
+│   ├── core/
+│   │   ├── aritmetica.c      eh_primo, mdc, inverso_modular, mod_exp
+│   │   └── rsa.c             chaves (P, Q, N, Phi, E, D), cifrar e decifrar
+│   └── gui/
+│       ├── main.cpp
+│       ├── mainwindow.h
+│       ├── mainwindow.cpp
+│       ├── mainwindow.ui     tela (Qt Designer)
+│       ├── arquivos.h
+│       └── arquivos.cpp      gravação dos .txt
+├── tests/
+│   └── test_rsa.c            testes do núcleo
+├── assets/
+│   ├── cripto_rsa.ico
+│   └── recursos.qrc          ícone embutido no executável
+├── Makefile                  núcleo + testes
+├── CMakeLists.txt            núcleo + testes + interface Qt
+└── .github/workflows/ci.yml
+```
+
+> **Sobre a tela:** os arquivos `mainwindow.h` e `mainwindow.ui` da versão original nunca foram versionados. Eles foram recriados a partir do `mainwindow.cpp`, com os mesmos widgets, nomes e comportamento. O visual pode ser diferente do executável v1.0.2.
+
+## Como compilar
+
+### Dependências
+
+| Parte | Precisa de |
+|-------|-----------|
+| Núcleo e testes | compilador C (gcc ou clang), `make`, GMP |
+| Interface | compilador C++17, CMake ≥ 3.16, Qt 6 (Widgets), GMP |
+
+- **Debian/Ubuntu:** `sudo apt install build-essential cmake libgmp-dev qt6-base-dev libgl-dev`
+- **Windows (MSYS2, ambiente UCRT64):** `pacman -S make mingw-w64-ucrt-x86_64-{gcc,cmake,ninja,qt6-base,gmp}`
+
+### Núcleo e testes (Makefile)
+
+```
+make          # gera build/nucleo/libcripto.a
+make test     # compila e roda tests/test_rsa.c
+make clean
+```
+
+### Interface (CMake + Qt 6)
+
+```
+cmake -B build
+cmake --build build
+ctest --test-dir build     # mesmos testes do núcleo
+```
+
+O executável fica em `build/cripto_rsa` (ou `build/cripto_rsa.exe` no Windows). Para distribuir no Windows, copie as DLLs do Qt com `windeployqt build/cripto_rsa.exe`.
+
+O CI (GitHub Actions) roda os testes do núcleo e compila a interface no Ubuntu e no Windows (MSYS2) a cada push e pull request.
 
 ## Autores:
 | Nome                                   | Número de Matrícula | E-mail                  | Curso               |
@@ -45,7 +113,7 @@ Em caso de dúvidas, você pode seguir este manual de instruções: [Manual de I
 | José Riquelme Teixeira da Silva        | 202407400           | jrts@ic.ufal.br        | Ciência da Computação |
 | Daniel de Araujo Albuquerque           | 202407311           | daa@ic.ufal.br         | Ciência da Computação |
 | Victor André Lopes Brasileiro          | 202407269           | valb1@ic.ufal.br       | Ciência da Computação |
-| Pablo Levy Fernandes Alcântara         | 202407429           | plfa1@ic.ufal.br       | Ciência da Computação |
+| Pablo Levy Fernandes Alcântara         | 202407429           | plfa1@ic.ufal.br       | Ciência da Computação |
 
 ## Contribuições Especiais
 
@@ -57,39 +125,22 @@ Essas contribuições foram fundamentais para tornar nosso projeto mais familiar
 
 ## Licença
 
-Este projeto é licenciado pelos autores sob a **Licença MIT**.
+Este projeto é licenciado pelos autores sob a **Licença MIT** (veja [LICENSE](LICENSE)).
 
 ### Bibliotecas e Dependências
 
-- **Qt Community Edition (Open Source)**: Licenciado sob a [LGPL](https://www.qt.io/licensing/). Consulte o link para mais detalhes.
-- **GMP (GNU MP Library)**: Licenciado sob a [LGPL](https://gmplib.org/). Este projeto utiliza uma versão **estática** da biblioteca GMP.
+- **Qt Community Edition (Open Source)**: licenciado sob a [LGPL](https://www.qt.io/licensing/). Consulte o link para mais detalhes.
+- **GMP (GNU MP Library)**: licenciada sob a [LGPL v3](https://gmplib.org/). O executável da release v.1.0.2 usa uma versão **estática** da GMP.
 
-### Informações sobre a GMP
+### Substituindo a GMP (LGPL)
 
-Este projeto usa a **GMP (GNU MP Library)**, uma biblioteca matemática de precisão arbitrária, sob a licença **LGPL v3**. A biblioteca GMP foi vinculada estaticamente ao projeto para fornecer funcionalidades de criptografia baseadas no algoritmo RSA. Como a GMP está vinculada estaticamente, os usuários têm o direito de substituir a biblioteca GMP, conforme os termos da LGPL.
+A LGPL garante a quem usa o programa o direito de trocar a GMP por outra versão. Como o código-fonte completo está neste repositório, basta recompilar apontando para a GMP desejada:
 
-#### Substituindo a Biblioteca GMP
+1. Obtenha o código-fonte da GMP em [https://gmplib.org/](https://gmplib.org/) e compile/instale-a (por exemplo, em `/opt/gmp`).
+2. Recompile o projeto apontando para ela:
+   - Núcleo e testes: `make test GMP_PREFIX=/opt/gmp`
+   - Interface: `cmake -B build -DGMP_ROOT=/opt/gmp` (ou `-DGMP_LIBRARY=/caminho/libgmp.a -DGMP_INCLUDE_DIR=/caminho/include`) e `cmake --build build`.
 
-Se você deseja substituir a versão da GMP usada neste projeto, você pode:
+Se você redistribuir o programa com uma GMP modificada, inclua o código-fonte dessa GMP ou informe claramente onde obtê-lo, junto com esta nota sobre a LGPL. O arquivo de licença deve acompanhar qualquer redistribuição do código-fonte.
 
-1. Obter o código-fonte da GMP na versão mais recente em [https://gmplib.org/](https://gmplib.org/).
-2. Substituir a versão da biblioteca na pasta `gmp/` ou, se necessário, modificar o caminho de linkagem.
-3. Recompilar o projeto para vincular a nova versão da GMP.
-
-#### Código-Fonte da GMP
-
-Se você deseja acessar o código-fonte da GMP ou modificar a biblioteca, você pode obter a versão mais recente em [https://gmplib.org/](https://gmplib.org/).
-
-### Requisitos de Licença
-
-A LGPL exige que você forneça aos usuários as opções para substituir a biblioteca GMP, mesmo quando ela está vinculada estaticamente. Para garantir a conformidade com a licença, você deve:
-
-- Incluir o código-fonte da GMP se você tiver modificado a biblioteca. Caso contrário, forneça informações claras de como os usuários podem acessar o código-fonte original da GMP.
-- Incluir os arquivos de objetos ou permitir a substituição do código-fonte da GMP para permitir que o usuário relink o programa com outra versão da biblioteca.
-- Incluir uma nota informando sobre o uso da GMP e a licença LGPL, como descrito acima.
-
-#### Arquivo de Licença
-
-Este projeto inclui um arquivo de licença que deve ser distribuído com o código-fonte, conforme exigido pela Licença MIT e a LGPL para a biblioteca GMP. O arquivo de licença pode ser encontrado no repositório e deve ser incluído junto com qualquer redistribuição do código-fonte.
-
-Se você tiver alguma dúvida sobre os termos da licença ou precisar de mais informações sobre a substituição das dependências, consulte os links mencionados na seção "Bibliotecas e Dependências".
+Se tiver dúvidas sobre os termos da licença ou sobre a substituição das dependências, consulte os links da seção "Bibliotecas e Dependências".
