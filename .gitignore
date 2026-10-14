@@ -1,0 +1,20 @@
+# Saída de compilação (Makefile em build/nucleo, CMake em build/)
+build/
+build-*/
+cmake-build-*/
+CMakeLists.txt.user
+
+# Binários: o pacote executável fica nas releases do GitHub
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.exe
+*.zip
+
+# Arquivos gerados pelo programa ao rodar
+mensagem_criptografada.txt
+mensagem_descriptografada.txt
+chaves.txt
