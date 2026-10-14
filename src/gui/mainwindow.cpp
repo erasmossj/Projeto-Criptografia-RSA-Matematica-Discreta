@@ -1,15 +1,21 @@
+// mainwindow.cpp — janela principal (camada de interface).
+//
+// Só interface: lê os campos, chama o núcleo (include/rsa.h), grava os
+// arquivos pelo módulo arquivos.h e mostra o resultado ou o erro.
+// As contas com GMP que antes ficavam aqui estão em src/core/rsa.c.
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include <QMessageBox>
+
+#include "arquivos.h"
+#include "rsa.h"
+
+#include <QByteArray>
 #include <QInputDialog>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QString>
-#include <QStringList>
-#include "cstdio"
 
-#include "backend/CRIPTO_RSA.h"
-
-void ligaTudo(QWidget *parent){
+static void ligaTudo(QWidget *parent){
     for(QWidget *child : parent->findChildren<QWidget*>()) {
         child->setEnabled(true);
     }
@@ -81,261 +87,134 @@ void MainWindow::MenuBar_Troca_G() {
 }
 
 void MainWindow::criptografar() {
-    QString mensagem = ui->Codigo->toPlainText(); //Codigo
-    QString chave_n = ui->ChavePrivada->text();
-    QString chave_e = ui->ChavePrivada2->text();
+    const QByteArray mensagem = ui->Codigo->toPlainText().toUtf8(); //Codigo
+    const QByteArray chave_n = ui->ChavePrivada->text().toUtf8();
+    const QByteArray chave_e = ui->ChavePrivada2->text().toUtf8();
 
-    mpz_t n, e;
-    mpz_init(n);
-    mpz_init(e);
-
-    std::string converterGMP;
-
-    converterGMP = chave_n.toStdString();
-    mpz_set_str(n, converterGMP.c_str(), 10);
-
-    converterGMP = chave_e.toStdString();
-    mpz_set_str(e, converterGMP.c_str(), 10);
-
-    converterGMP.clear();
-
-    FILE *mensagem_criptografada;
-    mensagem_criptografada = fopen("mensagem_criptografada.txt", "w");
-
-    QString resultado;
-
-    std::string mensagem_str = mensagem.toStdString();
-
-    int i = 0;
-
-    while(i < mensagem_str.size()){
-        char m_char = mensagem_str[i];
-
-        mpz_t m, c;
-        mpz_init_set_ui(m, (unsigned char) m_char);
-        mpz_init(c);
-
-        mod_exp(c, m, e, n);
-
-        gmp_fprintf(mensagem_criptografada, "%Zd ", c);
-
-        char* c_str = mpz_get_str(nullptr, 10, c);
-        resultado.append(c_str);
-        resultado.append(" ");
-
-        free(c_str);
-        mpz_clear(m);
-        mpz_clear(c);
-
-        i++;
+    char *cifrado = nullptr;
+    const rsa_status status = rsa_cifrar(reinterpret_cast<const unsigned char *>(mensagem.constData()),
+                                         static_cast<size_t>(mensagem.size()),
+                                         chave_n.constData(), chave_e.constData(), &cifrado);
+    if (status != RSA_OK) {
+        QMessageBox::warning(this, "Erro", status == RSA_ERRO_EXPOENTE_INVALIDO
+                                               ? "Chave inválida (E)."
+                                               : rsa_descricao_status(status));
+        return;
     }
 
-    fclose(mensagem_criptografada);
+    const QByteArray resultado(cifrado);
+    rsa_liberar(cifrado);
 
-    ui->Resultado->setPlainText(resultado);
+    if (!arquivos::salvarMensagemCriptografada(resultado)) {
+        QMessageBox::warning(this, "Erro", "Não foi possível criar o arquivo para salvar a mensagem criptografada.");
+        return;
+    }
+
+    ui->Resultado->setPlainText(QString::fromUtf8(resultado));
 
     QMessageBox::information(this, "Criptografia concluida com sucesso!", "Seu texto foi criptografado e salvo com sucesso na raiz do programa em mensagem_criptografada.txt");
-
-    resultado.clear();
-    mpz_clear(n);
-    mpz_clear(e);
 }
 
 void MainWindow::descriptografar() {
-    QString mensagem = ui->Codigo->toPlainText();
-    QString chave_n = ui->ChavePublica->text();
-    QString chave_d = ui->ChavePublica2->text();
+    const QByteArray mensagem = ui->Codigo->toPlainText().toUtf8();
+    const QByteArray chave_n = ui->ChavePublica->text().toUtf8();
+    const QByteArray chave_d = ui->ChavePublica2->text().toUtf8();
 
-    mpz_t n, d;
-    mpz_init(n);
-    mpz_init(d);
-
-    std::string converterGMP = chave_n.toStdString();
-    if (mpz_set_str(n, converterGMP.c_str(), 10) != 0) {
+    unsigned char *texto = nullptr;
+    size_t tamanho = 0;
+    size_t invalidos = 0;
+    const rsa_status status = rsa_decifrar(mensagem.constData(), chave_n.constData(), chave_d.constData(),
+                                           &texto, &tamanho, &invalidos);
+    if (status == RSA_ERRO_N_INVALIDO) {
         QMessageBox::warning(this, "Erro", "Chave pública inválida (N).");
-        mpz_clear(n);
-        mpz_clear(d);
         return;
     }
-
-    converterGMP = chave_d.toStdString();
-    if (mpz_set_str(d, converterGMP.c_str(), 10) != 0) {
+    if (status == RSA_ERRO_EXPOENTE_INVALIDO) {
         QMessageBox::warning(this, "Erro", "Chave privada inválida (D).");
-        mpz_clear(n);
-        mpz_clear(d);
+        return;
+    }
+    if (status != RSA_OK) {
+        QMessageBox::warning(this, "Erro", rsa_descricao_status(status));
         return;
     }
 
-    QStringList lista_inteiros = mensagem.split(" ", Qt::SkipEmptyParts);
-    QString resultado;
+    const QByteArray resultado(reinterpret_cast<const char *>(texto), static_cast<qsizetype>(tamanho));
+    rsa_liberar(texto);
 
-    FILE* arquivo = fopen("mensagem_descriptografada.txt", "w");
-    if (!arquivo) {
+    if (!arquivos::salvarMensagemDescriptografada(resultado)) {
         QMessageBox::warning(this, "Erro", "Não foi possível criar o arquivo para salvar a mensagem descriptografada.");
-        mpz_clear(n);
-        mpz_clear(d);
         return;
     }
 
-    auto i = lista_inteiros.begin();
-    while (i != lista_inteiros.end()) {
-        mpz_t c, m;
-        mpz_init(c);
-        mpz_init(m);
-
-        std::string c_strInt = i->toStdString();
-        if (mpz_set_str(c, c_strInt.c_str(), 10) != 0) {
-            qDebug() << "Erro ao definir c com o valor:" << *i;
-            QMessageBox::warning(this, "Erro de Descriptografia", "Valor inválido encontrado na mensagem.");
-            mpz_clear(c);
-            mpz_clear(m);
-            i++;
-            continue;
-        }
-
-        mod_exp(m, c, d, n);
-
-        if (mpz_cmp_ui(m, 0) > 0) {
-            char* m_str = mpz_get_str(nullptr, 10, m);
-            int caracter_descriptografado = static_cast<int>(mpz_get_ui(m));
-            resultado.append(QChar(caracter_descriptografado));
-
-            fprintf(arquivo, "%c", caracter_descriptografado);
-
-            free(m_str);
-        } else {
-            qDebug() << "O valor de m é zero ou negativo.";
-        }
-
-        mpz_clear(c);
-        mpz_clear(m);
-
-        i++;
+    for (size_t i = 0; i < invalidos; i++) {
+        QMessageBox::warning(this, "Erro de Descriptografia", "Valor inválido encontrado na mensagem.");
     }
 
-    fclose(arquivo);
-
-    ui->Resultado->setPlainText(resultado);
+    // a criptografia cifra os bytes UTF-8 do texto, então a volta é lida como UTF-8
+    ui->Resultado->setPlainText(QString::fromUtf8(resultado));
 
     QMessageBox::information(this, "Descriptografia concluída com sucesso!", "Mensagem descriptografada e salva com sucesso na raiz do programa em mensagem_descriptografada.txt");
-
-    lista_inteiros.clear();
-    resultado.clear();
-    mpz_clear(n);
-    mpz_clear(d);
 }
 
 void MainWindow::Coprimos_E_Phi() {
-    QString e_str = ui->entrada_E->text();
-    QString phi_str = ui->saida_Phi->text();
+    const QByteArray e_str = ui->entrada_E->text().toUtf8();
+    const QByteArray phi_str = ui->saida_Phi->text().toUtf8();
 
-    mpz_t e, phi, d, resultado_mdc;
-    mpz_init(e);
-    mpz_init(phi);
-    mpz_init(d);
-    mpz_init(resultado_mdc);
+    char *e = nullptr;
+    char *d = nullptr;
+    const rsa_status status = rsa_calcular_d(e_str.constData(), phi_str.constData(), &e, &d);
 
-    std::string converterGMP;
-
-    FILE *chaves;
-    chaves = fopen("chaves.txt", "a");
-
-    converterGMP = e_str.toStdString();
-    mpz_set_str(e, converterGMP.c_str(), 10);
-
-    converterGMP = phi_str.toStdString();
-    mpz_set_str(phi, converterGMP.c_str(), 10);
-
-    mdc(resultado_mdc, e, phi);
-
-    if(mpz_cmp_ui(resultado_mdc, 1) == 0){
-        inverso_modular(d, e, phi);
-
-        gmp_fprintf(chaves, "E: %Zd\n", e);
-        gmp_fprintf(chaves, "D: %Zd", d);
-
-        char* d_str = mpz_get_str(nullptr, 10, d);
-
-        QString d = d_str;
-
-        free(d_str);
+    if (status == RSA_OK) {
+        const bool salvo = arquivos::anexarChavesED(QByteArray(e), QByteArray(d));
+        const QString d_texto = QString::fromUtf8(d);
 
         QMessageBox::information(this, "Tudo Certinho", "O Sistema ja está pensando em um D");
 
-        ui->saida_D->setText(d);
+        ui->saida_D->setText(d_texto);
         ui->Frame_3_D->setVisible(true);
 
-    }else{
+        if (!salvo) {
+            QMessageBox::warning(this, "Erro", "Não foi possível salvar as chaves em chaves.txt.");
+        }
+    } else if (status == RSA_ERRO_MEMORIA) {
+        QMessageBox::warning(this, "Erro", rsa_descricao_status(status));
+    } else {
         QMessageBox::warning(this, "Parado ai MELIANTE", "Ei, o Porque seu Phi e E nao sao Coprimos?");
     }
 
-    mpz_clear(e);
-    mpz_clear(phi);
-    mpz_clear(d);
-    mpz_clear(resultado_mdc);
+    rsa_liberar(e);
+    rsa_liberar(d);
 
     QMessageBox::information(this, "Tudo certo!", "As chaves e os números primos foram salvos na pasta raiz do programa em chaves.txt");
-
-    fclose(chaves);
 }
 
 void MainWindow::Primos_p_q() {
-    QString p_str = ui->entrada_P->text();// p
-    QString q_str = ui->entrada_Q->text();// q
+    const QByteArray p_str = ui->entrada_P->text().toUtf8();// p
+    const QByteArray q_str = ui->entrada_Q->text().toUtf8();// q
 
-    std::string ConverterGMP;
+    rsa_modulo modulo;
+    const rsa_status status = rsa_calcular_modulo(p_str.constData(), q_str.constData(), &modulo);
 
-    mpz_t p, q, n, e, d, phi;
+    // chaves.txt é recriado a cada verificação, com P e Q (e N, se forem primos)
+    const QByteArray p_arquivo = modulo.p ? QByteArray(modulo.p) : p_str.trimmed();
+    const QByteArray q_arquivo = modulo.q ? QByteArray(modulo.q) : q_str.trimmed();
+    const QByteArray n_arquivo = modulo.n ? QByteArray(modulo.n) : QByteArray();
+    if (!arquivos::iniciarChaves(p_arquivo, q_arquivo, n_arquivo)) {
+        QMessageBox::warning(this, "Erro", "Não foi possível salvar as chaves em chaves.txt.");
+    }
 
-    mpz_init(p);
-    mpz_init(q);
-    mpz_init(n);
-    mpz_init(phi);
-
-    FILE *chaves;
-    chaves = fopen("chaves.txt", "w");
-
-    ConverterGMP = p_str.toStdString();
-    mpz_set_str(p, ConverterGMP.c_str(), 10);
-
-    ConverterGMP = q_str.toStdString();
-    mpz_set_str(q, ConverterGMP.c_str(), 10);
-
-    gmp_fprintf(chaves, "P: %Zd\n", p);
-    gmp_fprintf(chaves, "Q: %Zd\n", q);
-
-    if(eh_primo(p) && eh_primo(q)){// se forem primos
-
-        mpz_mul(n, p, q); // n = p * q
-        mpz_sub_ui(p, p, 1); // p = p - 1
-        mpz_sub_ui(q, q, 1); // q = q - 1
-        mpz_mul(phi, p, q); // phi = (p - 1) * (q - 1)
-
-        gmp_fprintf(chaves, "N: %Zd\n", n);
-
-        char* phi_str = mpz_get_str(nullptr, 10, phi);
-        char* n_char = mpz_get_str(nullptr, 10, n);
-
-        QString phi = phi_str;
-
-        QString n_str = n_char;
-
-        free(phi_str);
+    if (status == RSA_OK) {// se forem primos
+        const QString phi = QString::fromUtf8(modulo.phi);
+        const QString n_str = QString::fromUtf8(modulo.n);
 
         ui->saida_Phi->setText(phi);
         bool ok;
         QString e =
             QInputDialog::getText(this, "Insira o E", "Digite um numero CoPrimo a "+ phi +" (Phi)",
-                                     QLineEdit::Normal,
-                                     "",
-
-        //  QInputDialog::getInt(this, "Insira o E", "Digite um numero CoPrimo a "+ phi +" (Phi)",
-            //                              0,// inicial
-            //                              0,// minimo
-            //                              32000,// maximo
-            //                              1,// incremento por setada
-                                    &ok//butao
-                                    );
+                                  QLineEdit::Normal,
+                                  "",
+                                  &ok//butao
+                                  );
 
         if(ok){
             ui->Frame_2_E->setVisible(true);
@@ -344,16 +223,11 @@ void MainWindow::Primos_p_q() {
             ui->Frame_4_N->setVisible(true);
             ui->saida_N->setText(n_str);
         }
-    }else{
+    } else if (status == RSA_ERRO_MEMORIA) {
+        QMessageBox::warning(this, "Erro", rsa_descricao_status(status));
+    } else {
         QMessageBox::warning(this, "Parado ai MELIANTE", "Ei, o Porque seus P e Q não são primos?");
     }
 
-    fclose(chaves);
-
-    mpz_clear(p);
-    mpz_clear(q);
-    mpz_clear(n);
-    mpz_clear(phi);
-    mpz_clear(e);
-    mpz_clear(d);
+    rsa_modulo_liberar(&modulo);
 }

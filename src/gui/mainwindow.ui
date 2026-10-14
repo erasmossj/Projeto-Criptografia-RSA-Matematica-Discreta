@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Tela recriada a partir dos widgets usados em mainwindow.cpp: o .ui original
+  nunca foi versionado. Os nomes e tipos dos widgets são os do código; o
+  visual pode diferir da versão v1.0.2.
+-->
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>640</width>
+    <height>560</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Criptografia RSA</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="layout_principal">
+    <item>
+     <layout class="QHBoxLayout" name="layout_menu">
+      <item>
+       <widget class="QPushButton" name="menu_button_crip">
+        <property name="text">
+         <string>Criptografar / Descriptografar</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="menu_button_gera">
+        <property name="text">
+         <string>Gerar chaves</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QStackedWidget" name="menu">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="pagina_criptografia">
+       <layout class="QVBoxLayout" name="layout_criptografia">
+        <item>
+         <widget class="QLabel" name="label_Codigo">
+          <property name="text">
+           <string>Mensagem (texto para criptografar ou números para descriptografar):</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPlainTextEdit" name="Codigo"/>
+        </item>
+        <item>
+         <widget class="QPushButton" name="TrocarModo">
+          <property name="text">
+           <string>Trocar modo (criptografar / descriptografar)</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QStackedWidget" name="decripto">
+          <property name="currentIndex">
+           <number>0</number>
+          </property>
+          <widget class="QWidget" name="pagina_modo_cripto">
+           <layout class="QVBoxLayout" name="layout_modo_cripto">
+            <item>
+             <widget class="QLabel" name="label_modo_cripto">
+              <property name="text">
+               <string>&lt;b&gt;Modo: criptografar&lt;/b&gt; — use a chave pública (N, E)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <layout class="QFormLayout" name="form_modo_cripto">
+              <item row="0" column="0">
+               <widget class="QLabel" name="label_ChavePrivada">
+                <property name="text">
+                 <string>N:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QLineEdit" name="ChavePrivada">
+                <property name="placeholderText">
+                 <string>N = P × Q</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="label_ChavePrivada2">
+                <property name="text">
+                 <string>E:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QLineEdit" name="ChavePrivada2">
+                <property name="placeholderText">
+                 <string>expoente E, coprimo de Phi</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_Cripto">
+              <property name="text">
+               <string>Criptografar</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+          <widget class="QWidget" name="pagina_modo_descripto">
+           <layout class="QVBoxLayout" name="layout_modo_descripto">
+            <item>
+             <widget class="QLabel" name="label_modo_descripto">
+              <property name="text">
+               <string>&lt;b&gt;Modo: descriptografar&lt;/b&gt; — use a chave privada (N, D)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <layout class="QFormLayout" name="form_modo_descripto">
+              <item row="0" column="0">
+               <widget class="QLabel" name="label_ChavePublica">
+                <property name="text">
+                 <string>N:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QLineEdit" name="ChavePublica">
+                <property name="placeholderText">
+                 <string>N = P × Q</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="label_ChavePublica2">
+                <property name="text">
+                 <string>D:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QLineEdit" name="ChavePublica2">
+                <property name="placeholderText">
+                 <string>expoente D, inverso de E módulo Phi</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_Descripto">
+              <property name="text">
+               <string>Descriptografar</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_Resultado">
+          <property name="text">
+           <string>Resultado:</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPlainTextEdit" name="Resultado">
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="pagina_gerador">
+       <layout class="QVBoxLayout" name="layout_gerador">
+        <item>
+         <widget class="QLabel" name="label_gerador">
+          <property name="text">
+           <string>&lt;b&gt;Gerador de chaves&lt;/b&gt; — informe dois números primos P e Q</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QFormLayout" name="form_PQ">
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_P">
+            <property name="text">
+             <string>P:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="entrada_P"/>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_Q">
+            <property name="text">
+             <string>Q:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLineEdit" name="entrada_Q"/>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QPushButton" name="button_PQ_verif">
+          <property name="text">
+           <string>Verificar P e Q</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFrame" name="Frame_4_N">
+          <layout class="QHBoxLayout" name="layout_N">
+           <item>
+            <widget class="QLabel" name="label_N">
+             <property name="text">
+              <string>N:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="saida_N">
+             <property name="readOnly">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFrame" name="Frame_1_Phi">
+          <layout class="QHBoxLayout" name="layout_Phi">
+           <item>
+            <widget class="QLabel" name="label_Phi">
+             <property name="text">
+              <string>Phi:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="saida_Phi">
+             <property name="readOnly">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFrame" name="Frame_2_E">
+          <layout class="QHBoxLayout" name="layout_E">
+           <item>
+            <widget class="QLabel" name="label_E">
+             <property name="text">
+              <string>E:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="entrada_E"/>
+           </item>
+           <item>
+            <widget class="QPushButton" name="button_PhiE_verif">
+             <property name="text">
+              <string>Verificar E e gerar D</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFrame" name="Frame_3_D">
+          <layout class="QHBoxLayout" name="layout_D">
+           <item>
+            <widget class="QLabel" name="label_D">
+             <property name="text">
+              <string>D:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="saida_D">
+             <property name="readOnly">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <spacer name="espaco_gerador">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

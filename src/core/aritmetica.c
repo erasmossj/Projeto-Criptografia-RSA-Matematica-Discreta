@@ -1,8 +1,17 @@
-#include <gmp.h>
+/*
+ * aritmetica.c — aritmética modular do núcleo RSA (antigo backend/CRIPTO_RSA.c).
+ * A lógica é a mesma da versão original; veja include/rsa.h.
+ */
+#include "rsa.h"
 
 // FUNÇÕES DE GERAÇÃO DE CHAVES
 
 int eh_primo(mpz_t a) {
+    // a verificação de a <= 1 vem antes da raiz: mpf_sqrt de número negativo aborta o programa
+    if (mpz_cmp_ui(a, 1) <= 0) { //mpz_cmp é um metodo para comparar, nesse caso, avalia se a é menor ou igual a 1
+        return 0;
+    }
+
     mpf_t raiz, a_float; // a_float é necessário por causa do mpf_sqrt
     mpf_init(raiz);
     mpf_init(a_float);
@@ -10,11 +19,6 @@ int eh_primo(mpz_t a) {
     mpf_set_z(a_float, a); // passando o valor de a para a_float
     mpf_sqrt(raiz, a_float); // calcula a raiz quadrada
     mpf_clear(a_float);
-
-    if (mpz_cmp_ui(a, 1) <= 0) { //mpz_cmp é um metodo para comparar, nesse caso, avalia se a é menor que 1
-        mpf_clear(raiz);
-        return 0;
-    }
 
     mpz_t b;
     mpz_init_set_ui(b, 2); // começa a partir de 2
@@ -36,8 +40,8 @@ int eh_primo(mpz_t a) {
 }
 
 // função para calcular o MDC - basicamente, algoritmo de Euclides com gmp
+// resultado já chega inicializado por quem chama (inicializar de novo aqui vazava memória a cada chamada recursiva)
 void mdc(mpz_t resultado, const mpz_t a, const mpz_t b) {
-    mpz_init(resultado);
     if (mpz_cmp_ui(b, 0) == 0) { // verifica se b é zero.
         mpz_set(resultado, a); // se sim, então a é o resultado do mdc.
         return;
