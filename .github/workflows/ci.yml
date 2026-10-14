@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  nucleo:
+    name: Núcleo C/GMP (make test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Instalar GMP
+        run: sudo apt-get update && sudo apt-get install -y libgmp-dev
+      - name: Compilar e testar o núcleo
+        run: make test
+
+  interface:
+    name: Interface Qt 6 (CMake, Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Instalar Qt 6, GMP e CMake
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake qt6-base-dev libgl-dev libgmp-dev
+      - name: Configurar
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Compilar
+        run: cmake --build build --parallel
+      - name: Testes do núcleo (ctest)
+        run: ctest --test-dir build --output-on-failure
+
+  windows:
+    name: Interface Qt 6 (CMake, Windows/MSYS2)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: make
+          pacboy: >-
+            gcc:p
+            cmake:p
+            ninja:p
+            qt6-base:p
+            gmp:p
+      - name: Núcleo (make test)
+        run: make test
+      - name: Configurar
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Compilar
+        run: cmake --build build
+      - name: Testes do núcleo (ctest)
+        run: ctest --test-dir build --output-on-failure
